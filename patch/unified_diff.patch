@@ -144,17 +144,7 @@
  }
 --- old/usr/share/harbour-pure-maps/qml/Meters.qml
 +++ new/usr/share/harbour-pure-maps/qml/Meters.qml
-@@ -23,13 +23,14 @@ import "js/util.js" as Util
- 
- Item {
-     id: meters
--    anchors.right: northArrow.left
--    anchors.rightMargin: Theme.paddingSmall
--    anchors.verticalCenter: northArrow.verticalCenter
-+    anchors.right: parent.right
-+    anchors.rightMargin: Theme.paddingLarge
-+    anchors.bottom: parent.bottom
-+    anchors.bottomMargin: Theme.paddingLarge
+@@ -29,7 +29,7 @@ Item {
      height: labels.implicitHeight
      opacity: 0.9
      width: parent.width
@@ -602,13 +592,11 @@
      height: {
 --- old/usr/share/harbour-pure-maps/qml/NorthArrow.qml
 +++ new/usr/share/harbour-pure-maps/qml/NorthArrow.qml
-@@ -22,33 +22,14 @@ import "."
- 
+@@ -23,32 +23,13 @@ import "."
  IconButton {
      id: master
--    anchors.bottom: parent.bottom
+     anchors.bottom: parent.bottom
 -    anchors.right: parent.right
-+    anchors.top: centerButton.bottom
 +    anchors.horizontalCenter: centerButton.horizontalCenter
      height: icon.height
      icon.height: icon.sourceSize.height

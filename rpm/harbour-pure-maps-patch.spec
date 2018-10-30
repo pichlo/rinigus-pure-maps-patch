@@ -1,7 +1,7 @@
 Name:          harbour-pure-maps-patch
 Summary:       Patch: Alternative UI for Pure Maps
 Version:       0.0.1
-Release:       1
+Release:       2
 Group:         Patches
 BuildArch:     noarch
 Requires:      patchmanager
@@ -43,5 +43,8 @@ fi
 %{_datadir}/harbour-pure-maps/qml/NavigationBlockElement.qml
 
 %changelog
+* Tue Oct 30 2018 Peter Pichler <maemo@pichler.co.uk> 0.0.1-2
+- Moved the compass to the original place. It was quite fine there.
+
 * Sun Oct 14 2018 Peter Pichler <maemo@pichler.co.uk> 0.0.1-1
 - First build.
