@@ -1,0 +1,8 @@
+{
+   "name": "Alternative UI for Pure Maps",
+   "description": "An alternative layout for the Navigation Block and a few other visual elements, both in portrait and in landscape.",
+   "category": "Other",
+   "infos": {
+      "maintainer": "pichlo"
+   }
+}

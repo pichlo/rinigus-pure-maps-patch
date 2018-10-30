@@ -1,0 +1,840 @@
+--- old/usr/share/harbour-pure-maps/poor/util.py
++++ new/usr/share/harbour-pure-maps/poor/util.py
+@@ -515,8 +515,10 @@ def round_distance(meters, n=2):
+ 
+ def siground(x, n):
+     """Round `x` to `n` significant digits."""
+-    mult = 10**(n - math.floor(math.log10(x)) - 1)
+-    return round(x * mult) / mult
++    mult = 10**(n - 1)
++    if x < mult:
++        return round(x * mult) / mult
++    return round(x)
+ 
+ @contextlib.contextmanager
+ def silent(*exceptions, tb=False):
+--- old/usr/share/harbour-pure-maps/qml/AttributionButton.qml
++++ new/usr/share/harbour-pure-maps/qml/AttributionButton.qml
+@@ -22,21 +22,12 @@ import Sailfish.Silica 1.0
+ IconButton {
+     id: attributionButton
+     anchors.left: parent.left
+-    anchors.top: navigationBlock.bottom
++    anchors.top: app.portrait ? narrativeLabel.bottom : parent.top
+     height: icon.height
+     icon.height: icon.sourceSize.height
+     icon.smooth: false
+     icon.source: app.getIcon("icons/attribution/default")
+     icon.width: icon.sourceSize.width
+-    states: [
+-        State {
+-            when: !app.portrait && navigationBlockLandscapeLeftShield.height > 0
+-            AnchorChanges {
+-                target: attributionButton
+-                anchors.top: navigationBlockLandscapeLeftShield.bottom
+-            }
+-        }
+-    ]
+     width: icon.width
+     z: 500
+ 
+--- old/usr/share/harbour-pure-maps/qml/CenterButton.qml
++++ new/usr/share/harbour-pure-maps/qml/CenterButton.qml
+@@ -22,31 +22,12 @@ import Sailfish.Silica 1.0
+ IconButton {
+     id: button
+     anchors.right: parent.right
+-    anchors.top: navigationSign.bottom
++    anchors.verticalCenter: attributionButton.verticalCenter
+     height: icon.height
+     icon.height: icon.sourceSize.height
+     icon.smooth: false
+     icon.source: app.getIcon("icons/center")
+     icon.width: icon.sourceSize.width
+-    states: [
+-        State {
+-            when: app.mode !== modes.explore && app.portrait
+-            AnchorChanges {
+-                target: button
+-                anchors.right: undefined
+-                anchors.horizontalCenter: northArrow.horizontalCenter
+-            }
+-        },
+-        State {
+-            when: app.mode !== modes.explore && !app.portrait
+-            AnchorChanges {
+-                target: button
+-                anchors.right: northArrow.left
+-                anchors.top: undefined
+-                anchors.verticalCenter: northArrow.verticalCenter
+-            }
+-        }
+-    ]
+     width: icon.width
+     z: 500
+ 
+--- old/usr/share/harbour-pure-maps/qml/Map.qml
++++ new/usr/share/harbour-pure-maps/qml/Map.qml
+@@ -26,7 +26,8 @@ import "js/util.js" as Util
+ 
+ MapboxMap {
+     id: map
+-    anchors.fill: parent
++    anchors.right: parent.right
++    anchors.bottom: parent.bottom
+     cacheDatabaseDefaultPath: true
+     cacheDatabaseStoreSettings: false
+     center: QtPositioning.coordinate(49, 13)
+@@ -40,6 +41,25 @@ MapboxMap {
+     pixelRatio: Theme.pixelRatio * 1.5
+     zoomLevel: 4.0
+ 
++    states: [
++        State {
++            when: app.portrait
++            AnchorChanges {
++                target: map
++                anchors.top: navigationBlock.bottom
++                anchors.left: parent.left
++            }
++        },
++        State {
++            when: !app.portrait
++            AnchorChanges {
++                target: map
++                anchors.top: parent.top
++                anchors.left: navigationBlock.right
++            }
++        }
++    ]
++
+     // Token for Mapbox.com-hosted maps, i.e. sources with mapbox:// URLs.
+     accessToken: "pk.eyJ1IjoicmluaWd1cyIsImEiOiJjamxiMWF2N3gxNDI4M2ttdHNsYWxoOGFyIn0.0znRguypZfUcijqfBFyP3g"
+ 
+@@ -142,11 +162,6 @@ MapboxMap {
+         onHeightChanged: map.updateMargins();
+     }
+ 
+-    Connections {
+-        target: navigationInfoBlock
+-        onHeightChanged: map.updateMargins();
+-    }
+-
+     Connections {
+         target: poiPanel
+         onHeightChanged: map.updateMargins();
+@@ -673,7 +688,6 @@ MapboxMap {
+         // Calculate new margins and set them for the map.
+         var header = navigationBlock && navigationBlock.height > 0 ? navigationBlock.height : map.height*0.05;
+         var footer = !app.poiActive && app.mode === modes.explore && menuButton ? (map.height-menuButton.y) : 0;
+-        footer += !app.poiActive && (app.mode === modes.navigate || app.mode === modes.followMe) && app.portrait && navigationInfoBlock ? navigationInfoBlock.height : 0;
+         footer += !app.poiActive && (app.mode === modes.navigate || app.mode === modes.followMe) && streetName ? streetName.height : 0
+         footer += app.poiActive && poiPanel ? poiPanel.height : 0
+         footer = Math.min(footer, map.height / 2.0);
+--- old/usr/share/harbour-pure-maps/qml/MenuButton.qml
++++ new/usr/share/harbour-pure-maps/qml/MenuButton.qml
+@@ -28,7 +28,7 @@ IconButton {
+     icon.source: app.getIcon("icons/menu")
+     icon.width: icon.sourceSize.width
+     width: icon.width
+-    visible: app.mode === modes.explore && !app.poiActive
++    visible: !app.poiActive
+     z: 900
+     onClicked: app.showMenu();
+ }
+--- old/usr/share/harbour-pure-maps/qml/Meters.qml
++++ new/usr/share/harbour-pure-maps/qml/Meters.qml
+@@ -23,13 +23,14 @@ import "js/util.js" as Util
+ 
+ Item {
+     id: meters
+-    anchors.right: northArrow.left
+-    anchors.rightMargin: Theme.paddingSmall
+-    anchors.verticalCenter: northArrow.verticalCenter
++    anchors.right: parent.right
++    anchors.rightMargin: Theme.paddingLarge
++    anchors.bottom: parent.bottom
++    anchors.bottomMargin: Theme.paddingLarge
+     height: labels.implicitHeight
+     opacity: 0.9
+     width: parent.width
+-    visible: app.mode === modes.explore && !app.poiActive
++    visible: !app.poiActive
+     z: 400
+ 
+     Text {
+@@ -71,7 +72,7 @@ Item {
+         if (app.conf.units === "american") {
+             labels.text = " %1\n %2".arg(app.tr("mph")).arg(app.tr("ft"))
+             if (gps.position.speedValid)
+-                lines[0] = Math.round(gps.position.speed * 2.23694);
++                lines[0] = Util.siground(gps.position.speed * 2.23694, 2);
+             if (gps.position.horizontalAccuracyValid)
+                 lines[1] = Util.siground(gps.position.horizontalAccuracy * 3.28084, 2);
+             lines[1] = "\u2300 %1".arg(lines[1]);
+@@ -81,7 +82,7 @@ Item {
+         } else if (app.conf.units === "british") {
+             labels.text = " %1\n %2".arg(app.tr("mph")).arg(app.tr("yd"))
+             if (gps.position.speedValid)
+-                lines[0] = Math.round(gps.position.speed * 2.23694);
++                lines[0] = Util.siground(gps.position.speed * 2.23694, 2);
+             if (gps.position.horizontalAccuracyValid)
+                 lines[1] = Util.siground(gps.position.horizontalAccuracy * 1.09361, 2);
+             lines[1] = "\u2300 %1".arg(lines[1]);
+@@ -91,7 +92,7 @@ Item {
+         } else {
+             labels.text = " %1\n %2".arg(app.tr("km/h")).arg(app.tr("m"))
+             if (gps.position.speedValid)
+-                lines[0] = Math.round(gps.position.speed * 3.6);
++                lines[0] = Util.siground(gps.position.speed * 3.6, 2);
+             if (gps.position.horizontalAccuracyValid)
+                 lines[1] = Util.siground(gps.position.horizontalAccuracy, 2);
+             lines[1] = "\u2300 %1".arg(lines[1]);
+--- old/usr/share/harbour-pure-maps/qml/NavigationBlock.qml
++++ new/usr/share/harbour-pure-maps/qml/NavigationBlock.qml
+@@ -19,235 +19,187 @@
+ import QtQuick 2.0
+ import Sailfish.Silica 1.0
+ 
++import "js/util.js" as Util
++
++// The navigation block comprises two main sections:
++// 1. The progress bar;
++// 2. A multi-purpose display area containing the next maneuver icon
++//    and three configurable zones.
++// Depending on the screen orientation, the sections are laid out
++// either top to bottom or left to right.
++// The multi-purpose display is equally laid out left to right (in portrait)
++// or top to bottom (in landscape).
++
+ Rectangle {
+     id: block
+-    anchors.left: parent.left
+-    anchors.right: parent.right
+-    anchors.top: parent.top
++    width: hasRoute ? (app.portrait ? app.screenWidth : (progressBar.width + displayArea.width)) : 0
++    height: hasRoute ? (app.portrait ? (progressBar.height + displayArea.height) : app.screenHeight) : 0
+     color: app.styler.blockBg
+-    height: {
+-        if (!destDist) return 0;
+-        if (!app.portrait && notify) {
+-            var h1 = Theme.paddingMedium + Theme.fontSizeLarge - Theme.fontSizeMedium + narrativeLabel.height;
+-            var h2 = Theme.paddingMedium + destLabel.height;
+-            var h3 = streetLabel.height;
+-            return Math.max(h1, h2, h3);
+-        } else {
+-            var h1 = iconImage.height + 2 * Theme.paddingLarge;
+-            var h2 = manLabel.height + Theme.paddingSmall + narrativeLabel.height;
+-            var h3 = manLabel.height + streetLabel.height;
+-            // If far off route, manLabel defines the height of the block,
+-            // but we need padding to make a sufficiently large tap target.
+-            var h4 = notify ? 0 : manLabel.height + Theme.paddingMedium;
+-            return Math.max(h1, h2, h3, h4);
++
++    property string destDist: app.navigationStatus.destDist
++    property string destEta:  app.navigationStatus.destEta
++    property string destTime: app.navigationStatus.destTime
++    property string icon:     app.navigationStatus.icon
++    property string manDist:  app.navigationStatus.manDist
++    property string manTime:  app.navigationStatus.manTime
++    property bool   hasRoute: map.hasRoute
++
++    Grid {
++        columns: app.portrait ? 1 : 2
++        rows: app.portrait ? 2 : 1
++
++        Rectangle {
++            // Section one, the progress bar
++            // Placed along the top or the left side of the screen
++            id: progressBar
++            width: block.hasRoute ? (app.portrait ? app.screenWidth : Theme.paddingSmall) : 0
++            height: block.hasRoute ? (app.portrait ? Theme.paddingSmall : app.screenHeight) : 0
++            // Draw a shaded background
++            color: Theme.primaryColor
++            opacity: 0.1
++
++            Rectangle {
++                id: progressComplete
++                anchors.left: parent.left
++                color: Theme.primaryColor
++                radius: Theme.paddingSmall / 2
++                states: [
++                    State {
++                        when: app.portrait
++                        AnchorChanges {
++                            target: progressComplete
++                            anchors.top: parent.top
++                            anchors.bottom: undefined
++                        }
++                        PropertyChanges {
++                            target: progressComplete
++                            height: parent.height
++                            width: app.navigationStatus.progress * displayArea.width
++                        }
++                    },
++                    State {
++                        when: !app.portrait
++                        AnchorChanges {
++                            target: progressComplete
++                            anchors.top: undefined
++                            anchors.bottom: parent.bottom
++                        }
++                        PropertyChanges {
++                            target: progressComplete
++                            height: app.navigationStatus.progress * displayArea.height
++                            width: parent.width
++                        }
++                    }
++                ]
++            }
+         }
+-    }
+-    states: [
+-        State {
+-            when: !app.portrait && destDist && notify
+-            AnchorChanges {
+-                target: block
+-                anchors.left: undefined
++
++        Grid {
++            // Section two, display area, split into: maneuver icon and three display zones
++            // Placed immediately below (or to the right of) the progress bar
++            id: displayArea
++            columns: app.portrait ? 4 : 1
++            rows: app.portrait ? 1 : 4
++            height: app.portrait
++                        ? Math.max(iconImage.height, zoneA.height, zoneB.height, zoneC.height)
++                        : app.screenHeight
++            width: app.portrait ? app.screenWidth : calculatedWidth
++
++            // The display area comprises a next maneuver icon and three information zones,
++            // lined up side by side or top to bottom.
++            // Here, we work out what each zone's width would be in portrait and save it
++            // to use in both portrait and landscape, when elements are stocked vertically.
++            property real calculatedWidth: app.portrait
++                                               ? (app.screenWidth - iconImage.sourceSize.width) / 3
++                                               : (app.screenHeight - iconImage.sourceSize.width) / 3 + (Theme.paddingMedium * 2)
++
++            Image {
++                // Icon for the next maneuver
++                id: iconImage
++                anchors.leftMargin: Theme.paddingSmall
++                anchors.rightMargin: Theme.paddingSmall
++                anchors.topMargin: Theme.paddingSmall
++                anchors.bottomMargin: Theme.paddingSmall
++                fillMode: Image.Pad
++                smooth: true
++                source: block.hasRoute ? "icons/navigation/%1.svg".arg(block.icon || "flag") : ""
++                sourceSize.height: (Screen.sizeCategory >= Screen.Large ? 1.7 : 1) * Theme.iconSizeLarge
++                sourceSize.width: (Screen.sizeCategory >= Screen.Large ? 1.7 : 1) * Theme.iconSizeLarge
++                height: sourceSize.height
++                width: app.portrait ? sourceSize.width : parent.calculatedWidth
+             }
+-            PropertyChanges {
+-                target: block
+-                width: parent.width - shieldLeftWidth
++
++            NavigationBlockElement {
++                // Left (or top) area, e.g. a distance to the next maneuver
++                id: zoneA
++                width: parent.calculatedWidth
++                height: implicitHeight + (app.portrait ? 0 : (app.screenHeight - iconImage.height - 3 * implicitHeight - Theme.paddingLarge) / 2)
++                value: token(block.manDist, " ", 0)
++                caption: long_word_distance(token(block.manDist, " ", 1))
+             }
+-        }
+-    ]
+-    z: 500
+-
+-    property string destDist:  app.navigationStatus.destDist
+-    property string destEta:   app.navigationStatus.destEta
+-    property string destTime:  app.navigationStatus.destTime
+-    property string icon:      app.navigationStatus.icon
+-    property string manDist:   app.navigationStatus.manDist
+-    property string manTime:   app.navigationStatus.manTime
+-    property string narrative: app.navigationStatus.narrative
+-    property bool   notify:    app.navigationStatus.notify
+-    property var    street:    app.navigationStatus.street
+-    property int    shieldLeftHeight: !app.portrait && destDist && notify ? manLabel.height + Theme.paddingMedium + iconImage.height + iconImage.anchors.topMargin : 0
+-    property int    shieldLeftWidth:  !app.portrait && destDist && notify ? manLabel.anchors.leftMargin + Theme.paddingLarge + Math.max(manLabel.width, iconImage.width) : 0
+-
+-    Label {
+-        // Distance remaining to the next maneuver
+-        id: manLabel
+-        anchors.left: iconImage.right
+-        anchors.leftMargin: iconImage.width > 0 || !app.portrait ? (app.portrait ? Theme.paddingLarge : Theme.horizontalPageMargin) : 0
+-        anchors.rightMargin: Theme.paddingLarge
+-        anchors.top: parent.top
+-        color: block.notify ? Theme.highlightColor : Theme.primaryColor
+-        font.family: block.notify ? Theme.fontFamilyHeading : Theme.fontFamily
+-        font.pixelSize: block.notify ? Theme.fontSizeHuge : Theme.fontSizeMedium
+-        height: block.destDist ? implicitHeight + Theme.paddingMedium : 0
+-        text: block.manDist
+-        verticalAlignment: Text.AlignBottom
+-        states: [
+-            State {
+-                when: !app.portrait && block.destDist && block.notify
+-                AnchorChanges {
+-                    target: manLabel
+-                    anchors.left: undefined
+-                    anchors.right: parent.left
+-                    anchors.top: iconImage.bottom
+-                }
++
++            NavigationBlockElement {
++                // Middle area, e.g. current speed
++                id: zoneB
++                width: parent.calculatedWidth
++                height: zoneA.height
++                value: speed_value()
++                caption: speed_unit()
+             }
+-        ]
+-    }
+ 
+-    Label {
+-        // Estimated time of arrival
+-        id: destLabel
+-        anchors.baseline: manLabel.baseline
+-        anchors.right: parent.right
+-        anchors.rightMargin: Theme.horizontalPageMargin
+-        color: Theme.primaryColor
+-        font.pixelSize: Theme.fontSizeLarge
+-        height: block.destDist ? implicitHeight + Theme.paddingMedium : 0
+-        text: block.notify ? block.destEta : ""
+-        states: [
+-            State {
+-                when: !app.portrait && streetLabel.text
+-                AnchorChanges {
+-                    target: destLabel
+-                    anchors.baseline: streetLabel.baseline
+-                }
+-            },
+-            State {
+-                when: !app.portrait
+-                AnchorChanges {
+-                    target: destLabel
+-                    anchors.baseline: undefined
+-                    anchors.top: parent.top
+-                }
+-                PropertyChanges {
+-                    target: destLabel
+-                    verticalAlignment: Text.AlignBottom
+-                }
++            NavigationBlockElement {
++                // Right (or bottom) area, e.g. a distance to the destination or ETA
++                id: zoneC
++                width: parent.calculatedWidth
++                value: block.destEta
++                caption: app.tr("ETA")
+             }
+-        ]
++        }
+     }
+ 
+-    Label {
+-        // Estimated time of arrival: ETA label
+-        id: destEta
+-        anchors.baseline: destLabel.baseline
+-        anchors.right: destLabel.left
+-        anchors.rightMargin: Theme.paddingSmall
+-        color: Theme.secondaryColor
+-        font.pixelSize: Theme.fontSizeMedium
+-        text: app.tr("ETA")
+-        visible: block.notify
++    MouseArea {
++        anchors.fill: parent
++        onClicked: app.showNavigationPages();
+     }
+ 
+-    Label {
+-        // Street name
+-        id: streetLabel
+-        anchors.left: iconImage.right
+-        anchors.leftMargin: iconImage.width > 0 ? Theme.paddingLarge : 0
+-        anchors.right: parent.right
+-        anchors.rightMargin: app.portrait ? Theme.horizontalPageMargin : Theme.paddingLarge
+-        anchors.top: manLabel.bottom
+-        color: Theme.primaryColor
+-        font.pixelSize: Theme.fontSizeExtraLarge
+-        height: text ? implicitHeight + Theme.paddingMedium : 0
+-        maximumLineCount: 1
+-        states: [
+-            State {
+-                when: !app.portrait
+-                AnchorChanges {
+-                    target: streetLabel
+-                    anchors.left: iconImage.width > manLabel.width ? iconImage.right : manLabel.right
+-                    anchors.right: destEta.left
+-                    anchors.top: parent.top
+-                }
++    function token(s, t, n) {
++        var result = "";
++        for (var i in s) {
++            if (s[i] == t) {
++                --n;
++            } else if (n == 0) {
++                result += s[i];
+             }
+-        ]
+-        text: app.navigationPageSeen && block.notify ? streetName : ""
+-        truncationMode: TruncationMode.Fade
+-        verticalAlignment: Text.AlignTop
+-
+-        property string streetName: {
+-            if (!block.street) return "";
+-            var s = "";
+-            for (var i in block.street) {
+-                if (s != "") s += "; "
+-                s += block.street[i];
+-            }
+-            return s;
+         }
++        return result;
+     }
+ 
+-    Label {
+-        // Instruction text for the next maneuver
+-        id: narrativeLabel
+-        anchors.left: iconImage.right
+-        anchors.leftMargin: iconImage.width > 0 ? Theme.paddingLarge : 0
+-        anchors.right: parent.right
+-        anchors.rightMargin: app.portrait ? Theme.horizontalPageMargin : Theme.paddingLarge
+-        anchors.top: manLabel.bottom
+-        anchors.topMargin: Theme.paddingSmall
+-        color: Theme.primaryColor
+-        font.pixelSize: Theme.fontSizeMedium
+-        height: text ? implicitHeight + Theme.paddingMedium : 0
+-        states: [
+-            State {
+-                when: !app.portrait
+-                AnchorChanges {
+-                    target: narrativeLabel
+-                    anchors.baseline: destLabel.baseline
+-                    anchors.left: iconImage.width > manLabel.width ? iconImage.right : manLabel.right
+-                    anchors.right: destEta.left
+-                    anchors.top: undefined
+-                }
+-            }
+-        ]
+-        text: app.navigationPageSeen ?
+-            (block.notify && !streetLabel.text ? block.narrative : "") :
+-            (block.notify ? app.tr("Tap to review maneuvers or begin navigating") : "")
+-        verticalAlignment: Text.AlignTop
+-        wrapMode: Text.WordWrap
++    function long_word_distance(s) {
++        return (s == app.tr("ft")) ? app.tr("feet")   :
++               (s == app.tr("yd")) ? app.tr("yards")  :
++               (s == app.tr("m"))  ? app.tr("meters") :
++               (s == app.tr("mi")) ? app.tr("miles")  : s;
+     }
+ 
+-    Image {
+-        // Icon for the next maneuver
+-        id: iconImage
+-        anchors.left: parent.left
+-        anchors.leftMargin: Theme.horizontalPageMargin
+-        anchors.rightMargin: Theme.paddingLarge
+-        anchors.top: parent.top
+-        anchors.topMargin: height ? Theme.paddingLarge : 0
+-        fillMode: Image.Pad
+-        height: block.notify ? sourceSize.height : 0
+-        opacity: 0.9
+-        smooth: true
+-        source: block.notify ? "icons/navigation/%1.svg".arg(block.icon || "flag") : ""
+-        sourceSize.height: (Screen.sizeCategory >= Screen.Large ? 1.7 : 1) * Theme.iconSizeLarge
+-        sourceSize.width: (Screen.sizeCategory >= Screen.Large ? 1.7 : 1) * Theme.iconSizeLarge
+-        states: [
+-            State {
+-                when: !app.portrait && block.destDist && block.notify && iconImage.width < manLabel.width
+-                AnchorChanges {
+-                    target: iconImage
+-                    anchors.left: undefined
+-                    anchors.horizontalCenter: manLabel.horizontalCenter
+-                }
+-            },
+-            State {
+-                when: !app.portrait && block.destDist && block.notify
+-                AnchorChanges {
+-                    target: iconImage
+-                    anchors.left: undefined
+-                    anchors.right: parent.right
+-                }
+-            }
+-        ]
+-        width: block.notify ? sourceSize.width : 0
++    function speed_value() {
++        if (!py.ready) {
++            return "";
++        } else if (!gps.position.speedValid) {
++            return "—";
++        } else if (app.conf.get("units") === "metric") {
++            return Util.siground(gps.position.speed * 3.6, 2);
++        } else {
++            return Util.siground(gps.position.speed * 2.23694, 2);
++        }
+     }
+ 
+-    MouseArea {
+-        anchors.fill: parent
+-        onClicked: app.showNavigationPages();
++    function speed_unit() {
++        if (!py.ready) {
++            return "";
++        } else if (app.conf.get("units") === "metric") {
++            return app.tr("km/h");
++        } else {
++            return app.tr("mph");
++        }
+     }
+-
+ }
+--- old/usr/share/harbour-pure-maps/qml/NavigationSign.qml
++++ new/usr/share/harbour-pure-maps/qml/NavigationSign.qml
+@@ -23,7 +23,7 @@ Rectangle {
+     id: block
+     anchors.right: parent.right
+     anchors.rightMargin: -Theme.paddingMedium
+-    anchors.top: navigationBlock.bottom
++    anchors.top: app.portrait ? narrativeLabel.bottom : parent.top
+     anchors.topMargin: Theme.paddingSmall
+     color: "#3768B7"
+     height: {
+--- old/usr/share/harbour-pure-maps/qml/NorthArrow.qml
++++ new/usr/share/harbour-pure-maps/qml/NorthArrow.qml
+@@ -22,33 +22,14 @@ import "."
+ 
+ IconButton {
+     id: master
+-    anchors.bottom: parent.bottom
+-    anchors.right: parent.right
++    anchors.top: centerButton.bottom
++    anchors.horizontalCenter: centerButton.horizontalCenter
+     height: icon.height
+     icon.height: icon.sourceSize.height
+     icon.rotation: -map.bearing
+     icon.smooth: true
+     icon.source: app.getIcon("icons/north")
+     icon.width: icon.sourceSize.width
+-    states: [
+-        State {
+-            when: (app.mode === modes.navigate || app.mode === modes.followMe) && !app.portrait
+-            AnchorChanges {
+-                target: master
+-                anchors.bottom: undefined
+-                anchors.top: navigationSign.bottom
+-            }
+-        },
+-        State {
+-            when: app.mode === modes.navigate || app.mode === modes.followMe
+-            AnchorChanges {
+-                target: master
+-                anchors.bottom: undefined
+-                anchors.top: centerButton.bottom
+-            }
+-        }
+-    ]
+-    visible: !app.poiActive || app.mode === modes.navigate || app.mode === modes.followMe
+     width: icon.width
+     z: 500
+ 
+--- old/usr/share/harbour-pure-maps/qml/Notification.qml
++++ new/usr/share/harbour-pure-maps/qml/Notification.qml
+@@ -22,7 +22,7 @@ import "."
+ 
+ Bubble {
+     id: bubble
+-    anchorItem: navigationBlock
++    anchorItem: narrativeLabel
+     anchors.topMargin: Theme.paddingLarge
+     opacity: 0
+     showArrow: false
+--- old/usr/share/harbour-pure-maps/qml/RootPage.qml
++++ new/usr/share/harbour-pure-maps/qml/RootPage.qml
+@@ -23,30 +23,29 @@ Page {
+     id: page
+     allowedOrientations: app.defaultAllowedOrientations
+ 
+-    AttributionButton { id: attributionButton }
+-    CenterButton { id: centerButton }
+-    Map { id: map }
+-    MenuButton { id: menuButton }
+-    Meters { id: meters }
+     NavigationBlock { id: navigationBlock }
+-    NavigationBlockLandscapeLeftShield { id: navigationBlockLandscapeLeftShield }
+-    NavigationInfoBlock { id: navigationInfoBlock }
+-    NavigationInfoBlockLandscapeLeftShield { id: navigationInfoBlockLandscapeLeftShield }
+-    NavigationInfoBlockLandscapeRightShield { id: navigationInfoBlockLandscapeRightShield }
+-    NavigationSign { id: navigationSign }
+-    NorthArrow { id: northArrow }
+-    Notification { id: notification }
+-    PoiPanel { id: poiPanel }
++    Map {
++        id: map
++
++        AttributionButton { id: attributionButton }
++        CenterButton { id: centerButton }
++        MenuButton { id: menuButton }
++        Meters { id: meters }
++        NarrativeLabel { id: narrativeLabel }
++        NavigationSign { id: navigationSign }
++        NorthArrow { id: northArrow }
++        Notification { id: notification }
++        PoiPanel { id: poiPanel }
++        ScaleBar { id: scaleBar }
++        SpeedLimit { id: speedLimit }
++        StreetName { id: streetName }
++        ZoomLevel { id: zoomLevel }
++    }
+     RemorsePopup { id: remorse; z: 1000 }
+-    ScaleBar { id: scaleBar }
+-    SpeedLimit { id: speedLimit }
+-    StreetName { id: streetName }
+-    ZoomLevel { id: zoomLevel }
+ 
+     Component.onCompleted: {
+         app.map = map;
+         app.notification = notification;
+         app.remorse = remorse;
+     }
+-
+ }
+--- old/usr/share/harbour-pure-maps/qml/ScaleBar.qml
++++ new/usr/share/harbour-pure-maps/qml/ScaleBar.qml
+@@ -30,29 +30,9 @@ Item {
+     anchors.leftMargin: Theme.paddingLarge + Theme.paddingSmall
+     anchors.topMargin: Theme.paddingLarge + Theme.paddingSmall
+     anchors.rightMargin:  Theme.paddingLarge + Theme.paddingSmall
+-    height: (app.mode === modes.navigate || app.mode === modes.followMe) && app.portrait ? scaleBar.width : scaleBar.height
+-    states: [
+-        State {
+-            when: (app.mode === modes.navigate || app.mode === modes.followMe) && !app.portrait
+-            AnchorChanges {
+-                target: master
+-                anchors.bottom: navigationInfoBlockLandscapeRightShield.top
+-                anchors.left: undefined
+-                anchors.right: parent.right
+-            }
+-        },
+-
+-        State {
+-            when: app.mode === modes.navigate || app.mode === modes.followMe
+-            AnchorChanges {
+-                target: master
+-                anchors.bottom: undefined
+-                anchors.top: attributionButton.bottom
+-            }
+-        }
+-    ]
++    height: scaleBar.height
+     visible: !app.poiActive
+-    width: (app.mode === modes.navigate || app.mode === modes.followMe) && app.portrait ? scaleBar.height : scaleBar.width
++    width: scaleBar.width
+     z: 400
+ 
+     Item {
+@@ -63,12 +43,6 @@ Item {
+         opacity: 0.9
+         visible: scaleWidth > 0
+ 
+-        transform: Rotation {
+-            angle: (app.mode === modes.navigate || app.mode === modes.followMe) && app.portrait ? 90 : 0
+-            origin.x: scaleBar.width/2
+-            origin.y: scaleBar.height/2
+-        }
+-
+         property real   _prevDist: 0
+         property int    scaleBarMaxLengthDefault: Math.min(map.height,map.width) / 4
+         property int    scaleBarMaxLength: scaleBarMaxLengthDefault
+--- old/usr/share/harbour-pure-maps/qml/SpeedLimit.qml
++++ new/usr/share/harbour-pure-maps/qml/SpeedLimit.qml
+@@ -25,21 +25,11 @@ Rectangle {
+     anchors.left: parent.left
+     anchors.leftMargin: Theme.paddingLarge
+     anchors.bottomMargin: Theme.paddingLarge
+-    anchors.bottom: streetName.top
+     border.width: 0.7*Theme.paddingLarge
+     border.color: "red"
+     color: "white"
+     height: width
+     radius: width/2
+-    states: [
+-        State {
+-            when: (!app.portrait || app.mode === modes.followMe) && navigationInfoBlockLandscapeLeftShield.height > 0
+-            AnchorChanges {
+-                target: ring
+-                anchors.bottom: navigationInfoBlockLandscapeLeftShield.top
+-            }
+-        }
+-    ]
+     width: Math.round(Math.max(limit.width,limit.height) + 1.6*Theme.paddingLarge + Theme.paddingSmall)
+     visible: {
+         if (app.mode === modes.explore || !map.route || map.route.mode !== "car" || app.conf.showSpeedLimit==="never")
+@@ -54,6 +44,25 @@ Rectangle {
+     }
+     z: 400
+ 
++    states: [
++        State {
++            when: app.portrait
++            AnchorChanges {
++                target: ring
++                anchors.bottom: streetName.top
++                anchors.verticalCenter: undefined
++            }
++        },
++        State {
++            when: !app.portrait
++            AnchorChanges {
++                target: ring
++                anchors.bottom: undefined
++                anchors.verticalCenter: streetName.verticalCenter
++            }
++        }
++    ]
++
+     Text {
+         id: limit
+         anchors.centerIn: parent
+--- old/usr/share/harbour-pure-maps/qml/StreetName.qml
++++ new/usr/share/harbour-pure-maps/qml/StreetName.qml
+@@ -21,24 +21,13 @@ import Sailfish.Silica 1.0
+ 
+ Rectangle {
+     id: master
+-    anchors.bottom: (app.mode === modes.navigate || app.mode === modes.followMe) ? (app.portrait && app.mode === modes.navigate ? navigationInfoBlock.top : parent.bottom) : menuButton.top
+-    anchors.bottomMargin: (app.mode === modes.navigate || app.mode === modes.followMe) ? Theme.paddingSmall : 0
++    anchors.bottom: menuButton.top
+     anchors.left: parent.left
+     anchors.leftMargin: Theme.paddingLarge
+     anchors.right: parent.right
+     anchors.rightMargin: Theme.paddingLarge
+     color: "transparent"
+     height: cover.height
+-    states: [
+-        State {
+-            when: (app.mode === modes.navigate && !app.portrait) || app.mode === modes.followMe
+-            AnchorChanges {
+-                target: master
+-                anchors.left: navigationInfoBlockLandscapeLeftShield.right
+-                anchors.right: navigationInfoBlockLandscapeRightShield.left
+-            }
+-        }
+-    ]
+     z: 400
+ 
+     Rectangle {
+--- old/usr/share/harbour-pure-maps/qml/js/util.js
++++ new/usr/share/harbour-pure-maps/qml/js/util.js
+@@ -180,7 +180,10 @@ function shallowCopy(obj) {
+ 
+ function siground(x, n) {
+     // Round x to n significant digits.
+-    var mult = Math.pow(10, n - Math.floor(Math.log(x) / Math.LN10) - 1);
++    var mult = Math.pow(10, n - 1);
++    if (x > mult) {
++        mult = 1;
++    }
+     return Math.round(x * mult) / mult;
+ }
+ 
