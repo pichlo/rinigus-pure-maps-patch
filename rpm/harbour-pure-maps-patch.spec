@@ -1,12 +1,12 @@
 Name:          harbour-pure-maps-patch
 Summary:       Patch: Alternative UI for Pure Maps
-Version:       0.0.1
-Release:       2
+Version:       0.0.2
+Release:       1
 Group:         Patches
 BuildArch:     noarch
 Requires:      patchmanager
-Requires:      harbour-pure-maps >= 1.7.1
-Requires:      harbour-pure-maps <= 1.7.1
+Requires:      harbour-pure-maps >= 1.8.0
+Requires:      harbour-pure-maps <= 1.8.0
 
 Vendor:        pichlo
 Distribution:  SailfishOS
@@ -43,6 +43,9 @@ fi
 %{_datadir}/harbour-pure-maps/qml/NavigationBlockElement.qml
 
 %changelog
+* Wed Oct 31 2018 Peter Pichler <maemo@pichler.co.uk> 0.0.2-1
+- Catch up with Pure Maps 1.8.0.
+
 * Tue Oct 30 2018 Peter Pichler <maemo@pichler.co.uk> 0.0.1-2
 - Moved the compass to the original place. It was quite fine there.
 
